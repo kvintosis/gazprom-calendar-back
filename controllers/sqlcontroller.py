@@ -1,110 +1,55 @@
-import sqlalchemy
+from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.automap import automap_base
 from sqlalchemy import select
 from passlib.hash import pbkdf2_sha256
-
-from model import LoginCred, Event
+import sqlalchemy.exc
+from model.Event import Event
 from model.User import User
-from sqlalchemy import create_engine
-from sqlalchemy.ext.automap import automap_base
-from sqlalchemy.orm import Session
+from model.tables import Employee
 
 
-class SQLController:
-    _base = None
-    _engine = None
-
-    def __init__(self, address):
+class AsyncSQLController:
+    def __init__(self, address: str):
         try:
-            self._engine = create_engine(address, echo=True)
-            self._base = automap_base()
-            self._base.prepare(autoload_with=self._engine, reflect=True)
+            self.__engine = create_async_engine(address, echo=True)
         except sqlalchemy.exc.OperationalError:
             pass
+        self.async_session = async_sessionmaker(self.__engine, expire_on_commit=False)
+    async def create_user(self, user: User):
+        async with self.async_session() as session:
+            new_user = Employee(
+                first_name=user.first_name,
+                last_name=user.last_name,
+                birth_date=user.birth_date,
+                position=user.position,
+                department=user.department,
+                skills=user.skills,
+                interests=user.interests,
+                email=user.email,
+                password_hash=pbkdf2_sha256.hash(user.password_hash),
+                role=user.role
+            )
+            session.add(new_user)
+            await session.commit()
 
-    def create_user(self, user: User):
-        with Session(self._engine) as session:
-            user.password = pbkdf2_sha256.hash(user.password)
-            employees = self._base.classes.employees
-            session.add(employees(first_name=user.first_name,
-                        last_name=user.last_name,
-                        birth_date=user.birth_date,
-                        position=user.position,
-                        department=user.department,
-                        skills=user.skills,
-                        interests=user.interests,
-                        email=user.email,
-                        password_hash=user.password,
-                        role=user.role))
-            session.commit()
+    async def login(self, login: str, password: str):
+        async with self.async_session() as session:
+            # Проверка существования пользователя
+            user = await session.execute(select(Employee).where(Employee.email == login))
+            db_user = user.scalar()
+            if not db_user:
+                raise HTTPException(status_code=404, detail="User not found")
+            if not pbkdf2_sha256.verify(password, db_user.password_hash):
+                raise HTTPException(status_code=401, detail="Invalid password")
+            return True
 
-    def login(self, login_credentials: LoginCred):
-        with Session(self._engine) as session:
-            db_user = session.execute(
-                select(self._employees)
-                .where(self._employees.email == login_credentials.login)).scalar()
-            if pbkdf2_sha256.verify(login_credentials.password, db_user.password_hash):
-                return True
-            else:
-                raise ValueError("Invalid password")
+    async def create_event(self, event: Event):
+        async with self.async_session() as session:
+            session.add(event)
+            await session.commit()
 
-
-    def create_event(self, event: Event):
-        with Session(self._engine) as session:
-            event= self._base.classes.event
-            session.add(event(title=event.title,
-                              description=event.description,
-                              start_time=event.start_time,
-                              end_time=event.end_time,
-                              type=event.type,
-                              organizer_id=event.organizer_id))
-            session.commit()
-
-    def update_event(self, event_id: int, updated_event: Event):
-        with Session(self._engine) as session:
-            event_table = self._base.classes.event
-            event = session.query(event_table).filter_by(id=event_id).first()
-
-            if event:
-                event.title = updated_event.title
-                event.description = updated_event.description
-                event.start_time = updated_event.start_time
-                event.end_time = updated_event.end_time
-                event.type = updated_event.type
-                event.organizer_id = updated_event.organizer_id
-
-                session.commit()
-                return True
-            else:
-                return False
-
-    def delete_event(self, event_id: int):
-        with Session(self._engine) as session:
-            event_table = self._base.classes.event
-
-            # Находим событие по ID
-            event = session.query(event_table).filter_by(id=event_id).first()
-            if not event:
-                return False  # Если событие не найдено, возвращаем False
-
-            session.delete(event)  # Удаляем событие
-            session.commit()  # Подтверждаем изменения
-            return True  # Возвращаем True, если удаление прошло успешно
-
-    def get_all_events(self):
-        with Session(self._engine) as session:
-            event_table = self._base.classes.event
-
-            events = session.query(event_table).all()
-
-            return [
-                {
-                    "id": event.id,
-                    "title": event.title,
-                    "description": event.description,
-                    "start_time": str(event.start_time),
-                    "end_time": str(event.end_time),
-                    "type": event.type,
-                    "organizer_id": event.organizer_id,
-                }
-                for event in events
-            ]
+    async def get_all_events(self):
+        async with self.async_session() as session:
+            result = await session.execute(select(Event))
+            return result.scalars().all()
