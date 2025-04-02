@@ -7,7 +7,8 @@ from fastapi import FastAPI
 import env
 
 from model.User import User
-sql_controller = SQLController(address='sqlite:///' + env.sql_address)
+sql_controller = SQLController(address=f'sqlite:///{env.sql_address}')
+print(sql_controller._base.metadata.tables.keys())
 app = FastAPI()
 origins = [
     env.url
@@ -32,4 +33,8 @@ def read_employees():
     pass
 @app.post("/adminboard/createuser")
 def createuser(user: User):
-    sql_controller.create_user(user)
+    try:
+        sql_controller.create_user(user)
+        return {"message": "User created successfully"}
+    except Exception as e:
+        return {"message": str(e)}

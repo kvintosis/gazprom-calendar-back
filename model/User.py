@@ -7,7 +7,9 @@ class User(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
-    skills: list[str]
-    interests: list[str]
+    birth_date: str
+    skills: str
+    interests: str
     role: str
+    department: str
     position: str
