@@ -20,6 +20,12 @@ class SQLController:
             self._employees = self._base.classes.employees
         except sqlalchemy.exc.OperationalError:
             pass
+    def is_user_exist(self, login : str) -> bool:
+        with Session(self._engine) as session:
+            result = session.execute(select(self._employees).where(self._employees.email == login))
+            rows = result.fetchall()
+            return len(rows) == 1
+
 
     def create_user(self, user: User):
         with Session(self._engine) as session:
@@ -45,3 +51,4 @@ class SQLController:
                 return True
             else:
                 raise ValueError("Invalid password")
+

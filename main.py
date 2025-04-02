@@ -1,4 +1,6 @@
+import jwt
 from fastapi.middleware.cors import CORSMiddleware
+from jwt import InvalidTokenError
 from starlette.responses import JSONResponse
 from controllers.sqlcontroller import SQLController
 import env
@@ -21,6 +23,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 @app.post("/login")
 def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     try:
@@ -35,17 +38,36 @@ def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
         print(e)
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"message": "Invalid credentials"})
 
-
-
+def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, env.SECRET_KEY, algorithms=[env.ALGORITHM])
+        login = payload.get("sub")
+        if login is None:
+            raise credentials_exception
+    except InvalidTokenError:
+        raise credentials_exception
+    if sql_controller.is_user_exist(login) is False:
+        raise credentials_exception
+    return login
 
 @app.get("/events")
-def read_calendar():
+def read_calendar(current_user: str = Depends(get_current_user)):
     pass
 @app.get("/employees")
-def read_employees():
-    pass
+def read_employees(current_user: str = Depends(get_current_user)):
+    try:
+        sql_controller.get_events(current_user)
+    except Exception as e:
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST)
+
+
 @app.post("/adminboard/createuser")
-def createuser(user: User):
+def create_user(user: User):
     try:
         sql_controller.create_user(user)
         return JSONResponse(status_code=200, content={"message": "User created"})
