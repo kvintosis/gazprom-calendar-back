@@ -1,0 +1,162 @@
+Index: model/User.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from pydantic import BaseModel, EmailStr\r\n\r\n\r\nclass User(BaseModel):\r\n    password: str\r\n    login: str\r\n    first_name: str\r\n    last_name: str\r\n    email: EmailStr\r\n    skills: list[str]\r\n    interests: list[str]\r\n    role: str\r\n    position: str\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/model/User.py b/model/User.py
+--- a/model/User.py	(revision 560548462a2b2a9362431b75a20ac015ab36b8c6)
++++ b/model/User.py	(date 1743568974680)
+@@ -1,13 +1,13 @@
+-from pydantic import BaseModel, EmailStr
++from pydantic import BaseModel
+ 
+ 
+ class User(BaseModel):
+-    password: str
+-    login: str
+-    first_name: str
+-    last_name: str
+-    email: EmailStr
+-    skills: list[str]
+-    interests: list[str]
+-    role: str
+-    position: str
++    password = ''
++    login = ''
++    first_name = ''
++    last_name = ''
++    email = ''
++    skills = []
++    interests = []
++    role = ''
++    position = ''
+Index: .idea/modules.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/modules.xml b/.idea/modules.xml
+new file mode 100644
+--- /dev/null	(date 1743568929863)
++++ b/.idea/modules.xml	(date 1743568929863)
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="ProjectModuleManager">
++    <modules>
++      <module fileurl="file://$PROJECT_DIR$/.idea/gazprom-calendar-back.iml" filepath="$PROJECT_DIR$/.idea/gazprom-calendar-back.iml" />
++    </modules>
++  </component>
++</project>
+\ No newline at end of file
+Index: .idea/.gitignore
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/.gitignore b/.idea/.gitignore
+new file mode 100644
+--- /dev/null	(date 1743568929854)
++++ b/.idea/.gitignore	(date 1743568929854)
+@@ -0,0 +1,3 @@
++# Default ignored files
++/shelf/
++/workspace.xml
+Index: .idea/gazprom-calendar-back.iml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/gazprom-calendar-back.iml b/.idea/gazprom-calendar-back.iml
+new file mode 100644
+--- /dev/null	(date 1743569125012)
++++ b/.idea/gazprom-calendar-back.iml	(date 1743569125012)
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<module type="PYTHON_MODULE" version="4">
++  <component name="NewModuleRootManager">
++    <content url="file://$MODULE_DIR$">
++      <excludeFolder url="file://$MODULE_DIR$/vent" />
++      <excludeFolder url="file://$MODULE_DIR$/vent1" />
++    </content>
++    <orderEntry type="jdk" jdkName="Python 3.13 (gazprom-calendar-back)" jdkType="Python SDK" />
++    <orderEntry type="sourceFolder" forTests="false" />
++  </component>
++</module>
+\ No newline at end of file
+Index: requirements.txt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>fastapi\r\nuvicorn\r\nsqlalchemy\r\naiosqlite\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/requirements.txt b/requirements.txt
+--- a/requirements.txt	(revision 560548462a2b2a9362431b75a20ac015ab36b8c6)
++++ b/requirements.txt	(date 1743569745713)
+@@ -1,4 +1,8 @@
+-fastapi
++fastapi~=0.115.12
+ uvicorn
+-sqlalchemy
++sqlalchemy~=2.0.40
+ aiosqlite
++
++pydantic~=2.11.1
++starlette~=0.46.1
++bcrypt~=4.3.0
+\ No newline at end of file
+Index: .idea/inspectionProfiles/profiles_settings.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/inspectionProfiles/profiles_settings.xml b/.idea/inspectionProfiles/profiles_settings.xml
+new file mode 100644
+--- /dev/null	(date 1743568929863)
++++ b/.idea/inspectionProfiles/profiles_settings.xml	(date 1743568929863)
+@@ -0,0 +1,6 @@
++<component name="InspectionProjectProfileManager">
++  <settings>
++    <option name="USE_PROJECT_PROFILE" value="false" />
++    <version value="1.0" />
++  </settings>
++</component>
+\ No newline at end of file
+Index: .idea/misc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/misc.xml b/.idea/misc.xml
+new file mode 100644
+--- /dev/null	(date 1743569125483)
++++ b/.idea/misc.xml	(date 1743569125483)
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="Black">
++    <option name="sdkName" value="Python 3.12 (gazprom-calendar-back)" />
++  </component>
++  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.13 (gazprom-calendar-back)" project-jdk-type="Python SDK" />
++</project>
+\ No newline at end of file
+Index: .idea/vcs.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/vcs.xml b/.idea/vcs.xml
+new file mode 100644
+--- /dev/null	(date 1743568929863)
++++ b/.idea/vcs.xml	(date 1743568929863)
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="VcsDirectoryMappings">
++    <mapping directory="" vcs="Git" />
++  </component>
++</project>
+\ No newline at end of file

@@ -1,0 +1,318 @@
+Index: controllers/sqlcontroller.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import sqlalchemy\r\nimport bcrypt\r\nfrom model.User import User\r\nfrom sqlalchemy import create_engine\r\nfrom sqlalchemy.ext.automap import automap_base\r\nfrom sqlalchemy.orm import Session\r\n\r\n\r\nclass SQLController:\r\n    _base = None\r\n    _engine = None\r\n\r\n    def __init__(self, address):\r\n        try:\r\n            self._engine = create_engine(address, echo=True)\r\n            self._base = automap_base()\r\n            self._base.prepare(autoload_with=self._engine, reflect=True)\r\n        except sqlalchemy.exc.OperationalError:\r\n            pass\r\n\r\n    def create_user(self, user: User):\r\n        with Session(self._engine) as session:\r\n            salt = bcrypt.gensalt()\r\n            user.password = str(bcrypt.hashpw(user.password.encode(\"utf-8\"), salt))\r\n            employees = self._base.classes.employees\r\n            session.add(employees(first_name=user.first_name,\r\n                        last_name=user.last_name,\r\n                        birth_date=user.birth_date,\r\n                        position=user.position,\r\n                        department=user.department,\r\n                        skills=user.skills,\r\n                        interests=user.interests,\r\n                        email=user.email,\r\n                        password_hash=user.password,\r\n                        role=user.role))\r\n            session.commit()\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/controllers/sqlcontroller.py b/controllers/sqlcontroller.py
+--- a/controllers/sqlcontroller.py	(revision 2d057a665710289698d0a4fbe16c04bfdfe2c517)
++++ b/controllers/sqlcontroller.py	(date 1743582063148)
+@@ -1,6 +1,7 @@
+ import sqlalchemy
+ import bcrypt
+ from model.User import User
++from model.Event import Event
+ from sqlalchemy import create_engine
+ from sqlalchemy.ext.automap import automap_base
+ from sqlalchemy.orm import Session
+@@ -34,3 +35,68 @@
+                         password_hash=user.password,
+                         role=user.role))
+             session.commit()
++
++    def create_event(self, event: Event):
++        with Session(self._engine) as session:
++            event= self._base.classes.event
++            session.add(event(title=event.title,
++                              description=event.description,
++                              start_time=event.start_time,
++                              end_time=event.end_time,
++                              type=event.type,
++                              organizer_id=event.organizer_id))
++            session.commit()
++
++    def update_event(self, event_id: int, updated_event: Event):
++        with Session(self._engine) as session:
++            event_table = self._base.classes.event
++            event = session.query(event_table).filter_by(id=event_id).first()
++
++            if event:
++                event.title = updated_event.title
++                event.description = updated_event.description
++                event.start_time = updated_event.start_time
++                event.end_time = updated_event.end_time
++                event.type = updated_event.type
++                event.organizer_id = updated_event.organizer_id
++
++                session.commit()
++                return True
++            else:
++                return False
++
++    def delete_event(self, event_id: int):
++        with Session(self._engine) as session:
++            event_table = self._base.classes.event
++
++            # Находим событие по ID
++            event = session.query(event_table).filter_by(id=event_id).first()
++            if not event:
++                return False  # Если событие не найдено, возвращаем False
++
++            session.delete(event)  # Удаляем событие
++            session.commit()  # Подтверждаем изменения
++            return True  # Возвращаем True, если удаление прошло успешно
++
++    def get_all_events(self):
++        with Session(self._engine) as session:
++            event_table = self._base.classes.event
++
++            events = session.query(event_table).all()
++
++            return [
++                {
++                    "id": event.id,
++                    "title": event.title,
++                    "description": event.description,
++                    "start_time": str(event.start_time),
++                    "end_time": str(event.end_time),
++                    "type": event.type,
++                    "organizer_id": event.organizer_id,
++                }
++                for event in events
++            ]
++
++    @property
++    def base(self):
++        return self._base
+Index: env.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import os\r\nsql_address = os.path.abspath(\"./databases/employees.sqlite\")\r\nurl = \"http://localhost:8080\"
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/env.py b/env.py
+--- a/env.py	(revision 2d057a665710289698d0a4fbe16c04bfdfe2c517)
++++ b/env.py	(date 1743577020618)
+@@ -1,3 +1,3 @@
+ import os
+ sql_address = os.path.abspath("./databases/employees.sqlite")
+-url = "http://localhost:8080"
+\ No newline at end of file
++url = "http://localhost:8080"
+Index: main.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from typing import Union\r\n\r\nfrom starlette.middleware.cors import CORSMiddleware\r\n\r\nfrom controllers.sqlcontroller import SQLController\r\nfrom fastapi import FastAPI\r\nimport env\r\n\r\nfrom model.User import User\r\nsql_controller = SQLController(address=f'sqlite:///{env.sql_address}')\r\nprint(sql_controller._base.metadata.tables.keys())\r\napp = FastAPI()\r\norigins = [\r\n    env.url\r\n]\r\napp.add_middleware(\r\n    CORSMiddleware,\r\n    allow_origins=origins,\r\n    allow_credentials=True,\r\n    allow_methods=[\"*\"],\r\n    allow_headers=[\"*\"],\r\n)\r\n@app.post(\"/login\")\r\ndef read_root():\r\n    return {\"Hello\": \"World\"}\r\n\r\n\r\n@app.get(\"/events\")\r\ndef read_calendar():\r\n    pass\r\n@app.get(\"/employees\")\r\ndef read_employees():\r\n    pass\r\n@app.post(\"/adminboard/createuser\")\r\ndef createuser(user: User):\r\n    try:\r\n        sql_controller.create_user(user)\r\n        return {\"message\": \"User created successfully\"}\r\n    except Exception as e:\r\n        return {\"message\": str(e)}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/main.py b/main.py
+--- a/main.py	(revision 2d057a665710289698d0a4fbe16c04bfdfe2c517)
++++ b/main.py	(date 1743581462909)
+@@ -7,12 +7,13 @@
+ import env
+ 
+ from model.User import User
++from model.Event import Event
+ sql_controller = SQLController(address=f'sqlite:///{env.sql_address}')
+-print(sql_controller._base.metadata.tables.keys())
+ app = FastAPI()
+ origins = [
+     env.url
+ ]
++
+ app.add_middleware(
+     CORSMiddleware,
+     allow_origins=origins,
+@@ -20,6 +21,7 @@
+     allow_methods=["*"],
+     allow_headers=["*"],
+ )
++
+ @app.post("/login")
+ def read_root():
+     return {"Hello": "World"}
+@@ -38,3 +40,9 @@
+         return {"message": "User created successfully"}
+     except Exception as e:
+         return {"message": str(e)}
++def create_event(event: Event):
++    try:
++        sql_controller.create_event(event)
++        return {"messege": "Event created successfully"}
++    except Exception as e:
++        return {"message": str(e)}
+Index: model/User.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from pydantic import BaseModel, EmailStr\r\n\r\n\r\nclass User(BaseModel):\r\n    password: str\r\n    login: str\r\n    first_name: str\r\n    last_name: str\r\n    email: EmailStr\r\n    birth_date: str\r\n    skills: str\r\n    interests: str\r\n    role: str\r\n    department: str\r\n    position: str\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/model/User.py b/model/User.py
+--- a/model/User.py	(revision 2d057a665710289698d0a4fbe16c04bfdfe2c517)
++++ b/model/User.py	(date 1743581360867)
+@@ -6,10 +6,10 @@
+     login: str
+     first_name: str
+     last_name: str
+-    email: EmailStr
+     birth_date: str
+-    skills: str
+-    interests: str
++    email: EmailStr
++    skills: list[str]
++    interests: list[str]
+     role: str
+-    department: str
+     position: str
++    department: str
+Index: requirements.txt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>fastapi\r\nuvicorn\r\nsqlalchemy\r\naiosqlite\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/requirements.txt b/requirements.txt
+--- a/requirements.txt	(revision 2d057a665710289698d0a4fbe16c04bfdfe2c517)
++++ b/requirements.txt	(date 1743571316507)
+@@ -1,4 +1,8 @@
+-fastapi
++fastapi~=0.115.12
+ uvicorn
+-sqlalchemy
++sqlalchemy~=2.0.40
+ aiosqlite
++
++pydantic~=2.11.1
++starlette~=0.46.1
++bcrypt~=4.3.0
+\ No newline at end of file
+Index: .idea/modules.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/modules.xml b/.idea/modules.xml
+new file mode 100644
+--- /dev/null	(date 1743571316487)
++++ b/.idea/modules.xml	(date 1743571316487)
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="ProjectModuleManager">
++    <modules>
++      <module fileurl="file://$PROJECT_DIR$/.idea/gazprom-calendar-back.iml" filepath="$PROJECT_DIR$/.idea/gazprom-calendar-back.iml" />
++    </modules>
++  </component>
++</project>
+\ No newline at end of file
+Index: .idea/.gitignore
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/.gitignore b/.idea/.gitignore
+new file mode 100644
+--- /dev/null	(date 1743571316497)
++++ b/.idea/.gitignore	(date 1743571316497)
+@@ -0,0 +1,3 @@
++# Default ignored files
++/shelf/
++/workspace.xml
+Index: .idea/gazprom-calendar-back.iml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/gazprom-calendar-back.iml b/.idea/gazprom-calendar-back.iml
+new file mode 100644
+--- /dev/null	(date 1743575801634)
++++ b/.idea/gazprom-calendar-back.iml	(date 1743575801634)
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<module type="PYTHON_MODULE" version="4">
++  <component name="NewModuleRootManager">
++    <content url="file://$MODULE_DIR$">
++      <excludeFolder url="file://$MODULE_DIR$/vent" />
++      <excludeFolder url="file://$MODULE_DIR$/vent1" />
++    </content>
++    <orderEntry type="jdk" jdkName="Python 3.13 (gazprom-calendar-back)" jdkType="Python SDK" />
++    <orderEntry type="sourceFolder" forTests="false" />
++  </component>
++</module>
+\ No newline at end of file
+Index: .idea/inspectionProfiles/profiles_settings.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/inspectionProfiles/profiles_settings.xml b/.idea/inspectionProfiles/profiles_settings.xml
+new file mode 100644
+--- /dev/null	(date 1743571316517)
++++ b/.idea/inspectionProfiles/profiles_settings.xml	(date 1743571316517)
+@@ -0,0 +1,6 @@
++<component name="InspectionProjectProfileManager">
++  <settings>
++    <option name="USE_PROJECT_PROFILE" value="false" />
++    <version value="1.0" />
++  </settings>
++</component>
+\ No newline at end of file
+Index: .idea/misc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/misc.xml b/.idea/misc.xml
+new file mode 100644
+--- /dev/null	(date 1743575801634)
++++ b/.idea/misc.xml	(date 1743575801634)
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="Black">
++    <option name="sdkName" value="Python 3.12 (gazprom-calendar-back)" />
++  </component>
++  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.13 (gazprom-calendar-back)" project-jdk-type="Python SDK" />
++</project>
+\ No newline at end of file
+Index: .idea/vcs.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/vcs.xml b/.idea/vcs.xml
+new file mode 100644
+--- /dev/null	(date 1743571316537)
++++ b/.idea/vcs.xml	(date 1743571316537)
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="VcsDirectoryMappings">
++    <mapping directory="" vcs="Git" />
++  </component>
++</project>
+\ No newline at end of file
+Index: model/Event.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/model/Event.py b/model/Event.py
+new file mode 100644
+--- /dev/null	(date 1743578639276)
++++ b/model/Event.py	(date 1743578639276)
+@@ -0,0 +1,9 @@
++from pydantic import BaseModel
++
++class Event(BaseModel):
++    title: str
++    description: str
++    start_time: str
++    end_time: str
++    type: str
++    organizer_id: int
