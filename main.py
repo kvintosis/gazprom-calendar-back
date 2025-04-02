@@ -31,5 +31,5 @@ def read_calendar():
 def read_employees():
     pass
 @app.post("/adminboard/createuser")
-def read_adminboard(user: User):
-    pass
+def createuser(user: User):
+    sql_controller.create_user(user)

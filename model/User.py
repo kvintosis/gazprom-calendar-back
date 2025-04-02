@@ -1,11 +1,13 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
+
+
 class User(BaseModel):
-    password = ''
-    login = ''
-    first_name = ''
-    last_name = ''
-    email = ''
-    skills = []
-    interests = []
-    role = ''
-    position = ''
+    password: str
+    login: str
+    first_name: str
+    last_name: str
+    email: EmailStr
+    skills: list[str]
+    interests: list[str]
+    role: str
+    position: str
