@@ -14,3 +14,10 @@ class Dto_Event(BaseModel):
     end_time: datetime
     type: EventType
     organizer_id: int
+class EventCreate(BaseModel):
+    title: str
+    description: str | None = None
+    start_time: datetime
+    end_time: datetime
+    type: str
+    organizer_id: int

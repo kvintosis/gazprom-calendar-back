@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from controllers.sqlcontroller import AsyncSQLController
 import env
 from model.Dto_Event import Dto_Event
+from model.Dto_Event import EventCreate
 from model.jwtBearer import create_access_token
 from model.User import User
 from datetime import datetime, timedelta, timezone
@@ -117,15 +118,18 @@ async def create_event(event: Dto_Event):
     except Exception as e:
         return JSONResponse(status_code=404, content={"message": str(e)})
 
-@app.post("/adminboard/createuser")
-async def create_user(user: User):
+@app.post("/adminboard/createevent")
+async def create_event(event: EventCreate, role: str = Depends(get_current_user)):
+    if role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Только администратор может создавать события"
+        )
     try:
-        await check_admin()
-        await sql_controller.create_user(user)
-        return JSONResponse(status_code=200, content={"message": "User created"})
+        new_event = await sql_controller.create_event(event)
+        return new_event
     except Exception as e:
-        return JSONResponse(status_code=404, content={"message": str(e)})
-
+        raise HTTPException(status_code=400, detail=str(e))
 @app.get("/adminboard/")
 async def check_admin(role: str = Depends(get_current_user)):
     if role != "admin":
@@ -133,6 +137,19 @@ async def check_admin(role: str = Depends(get_current_user)):
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
     pass
+
+@app.delete("/adminboard/deleteevent/{event_id}")
+async def delete_event(event_id: int, role: str = Depends(get_current_user)):
+    if role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Только администратор может удалять события"
+        )
+    try:
+        await sql_controller.delete_event(event_id)
+        return JSONResponse(status_code=200, content={"message": "Event deleted"})
+    except Exception as e:
+        return JSONResponse(status_code=404, content={"message": str(e)})
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

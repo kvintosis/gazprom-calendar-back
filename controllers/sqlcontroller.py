@@ -59,12 +59,20 @@ class AsyncSQLController:
             data = [dict(zip([column.name for column in columns], row)) for row in result.all()]
             return data
 
-    async def create_event(self, event: Dto_Event):
+    async def create_event(self, event: EventCreate):
         async with self.async_session() as session:
-            new_event = Event(**event.model_dump())
-            print(new_event)
-            session.add(new_event)
-            await session.commit()
+            async with session.begin():
+                new_event = Event(
+                    title=event.title,
+                    description=event.description,
+                    start_time=event.start_time,
+                    end_time=event.end_time,
+                    type=event.type,
+                    organizer_id=event.organizer_id,
+                )
+                session.add(new_event)
+                await session.commit()
+                return new_event
 
     async def get_all_events(self):
         async with self.async_session() as session:
@@ -73,3 +81,11 @@ class AsyncSQLController:
             result = await session.execute(select(*columns))
             data = [dict(zip([column.name for column in columns], row)) for row in result.all()]
             return data
+
+    async def delete_event(self, event_id: int):
+        async with self.async_session() as session:
+            async with session.begin():
+                event = await session.get(Event, event_id)
+                if not event:
+                    raise Exception("Событие не найдено")
+                await session.delete(event)
