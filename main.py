@@ -5,6 +5,7 @@ from jwt import InvalidTokenError
 from fastapi.responses import RedirectResponse, JSONResponse
 from controllers.sqlcontroller import AsyncSQLController
 import env
+from model.DTO_event import DTO_event
 from model.jwtBearer import create_access_token
 from model.User import User
 from datetime import datetime, timedelta, timezone
@@ -97,9 +98,15 @@ async def create_user(user: User):
         await sql_controller.create_user(user)
         return JSONResponse(status_code=200, content={"message": "User created"})
     except Exception as e:
-        print(e)
         return JSONResponse(status_code=404, content={"message": str(e)})
 
+@app.post("/adminboard/createevent")
+async def create_event(event: DTO_event):
+    try:
+        await sql_controller.create_event(event)
+        return JSONResponse(status_code=200, content={"message": "Event created"})
+    except Exception as e:
+        return JSONResponse(status_code=404, content={"message":str(e)})
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

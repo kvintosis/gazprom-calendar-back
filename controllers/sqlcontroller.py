@@ -6,9 +6,9 @@ from sqlalchemy.ext.automap import automap_base
 from sqlalchemy import select
 from passlib.hash import pbkdf2_sha256
 import sqlalchemy.exc
-from model.Event import Event
+from model.DTO_event import DTO_event
 from model.User import User
-from model.tables import Employee
+from model.tables import Employee, Event
 
 
 class AsyncSQLController:
@@ -46,7 +46,7 @@ class AsyncSQLController:
                 raise HTTPException(status_code=401, detail="Invalid password")
             return True
 
-    async def create_event(self, event: Event):
+    async def create_event(self, event: DTO_event):
         async with self.async_session() as session:
             new_event = Event(
                 title=event.title,
@@ -61,5 +61,5 @@ class AsyncSQLController:
 
     async def get_all_events(self):
         async with self.async_session() as session:
-            result = await session.execute(select(Event))
+            result = await session.execute(select(DTO_event))
             return result.scalars().all()

@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 
-class Event(BaseModel):
+class DTO_event(BaseModel):
     title: str
     description: str
     start_time: str
