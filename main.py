@@ -127,15 +127,6 @@ async def create_user(user: User):
     except Exception as e:
         return JSONResponse(status_code=404, content={"message": str(e)})
 
-
-@app.post("/adminboard/createevent")
-async def create_event(event: Dto_Event):
-    try:
-        await sql_controller.create_event(event)
-        return JSONResponse(status_code=200, content={"message": "Event created"})
-    except Exception as e:
-        return JSONResponse(status_code=404, content={"message": str(e)})
-
 @app.get("/adminboard/")
 async def check_adminboard(role: str = Depends(get_current_user)):
     if role != "admin":
