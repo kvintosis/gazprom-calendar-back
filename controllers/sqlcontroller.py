@@ -32,7 +32,14 @@ class AsyncSQLController:
             )
             session.add(new_user)
             await session.commit()
-
+    async def get_role(self, login: str) -> str:
+        """Получение роли user/admin у работника"""
+        async with self.async_session() as session:
+            role = await session.execute(select(Employee.role).where(Employee.email == login))
+            role = role.scalar()
+            if role is None:
+                raise HTTPException(status_code=404)
+            return role
     async def login(self, login: str, password: str):
         async with self.async_session() as session:
             # Проверка существования пользователя

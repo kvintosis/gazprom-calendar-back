@@ -39,10 +39,12 @@ async def login(response: Response, form_data: Annotated[OAuth2PasswordRequestFo
     try:
         await sql_controller.login(form_data.username, form_data.password)
         access_token_expires = timedelta(minutes=env.ACCESS_TOKEN_EXPIRE_MINUTES)
+        role = await sql_controller.get_role(form_data.username)
         access_token = create_access_token(
-            data={"sub": form_data.username},
+            data={"sub": role},
             expires_delta=access_token_expires
         )
+
 
         # Установка cookie
         response.set_cookie(
@@ -75,17 +77,17 @@ def get_current_user(token: Annotated[str | None, Cookie(alias="access_token")] 
     try:
         print(token)
         payload = jwt.decode(token, env.SECRET_KEY, algorithms=[env.ALGORITHM])
-        login = payload.get("sub")
+        role = payload.get("sub")
         if login is None:
             raise credentials_exception
     except jwt.ExpiredSignatureError:
         raise credentials_exception
 
-    return login
+    return role
 
 
 @app.get("/events")
-async def read_event(current_user: str = Depends(get_current_user)):
+async def read_event(_ = Depends(get_current_user)):
     try:
         event = await sql_controller.get_all_events()
         return event
@@ -97,7 +99,7 @@ async def read_event(current_user: str = Depends(get_current_user)):
 
 
 @app.get("/employees")
-async def read_employees(current_user: str = Depends(get_current_user)):
+async def read_employees(_ = Depends(get_current_user)):
     try:
         employees = await sql_controller.get_all_employers()
         return employees
@@ -135,7 +137,11 @@ async def create_event(event: Dto_Event):
         return JSONResponse(status_code=404, content={"message": str(e)})
 
 @app.get("/adminboard/")
-async def check_adminboard(current_user: str = Depends(get_current_user)):
+async def check_adminboard(role: str = Depends(get_current_user)):
+    if role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
     pass
 
 if __name__ == "__main__":
