@@ -1,3 +1,5 @@
+from asyncio import new_event_loop
+
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.ext.automap import automap_base
@@ -46,7 +48,15 @@ class AsyncSQLController:
 
     async def create_event(self, event: Event):
         async with self.async_session() as session:
-            session.add(event)
+            new_event = Event(
+                title=event.title,
+                description=event.description,
+                start_time=event.start_time,
+                end_time=event.end_time,
+                type=event.type,
+                organizer_id=event.organizer_id
+            )
+            session.add(new_event)
             await session.commit()
 
     async def get_all_events(self):
