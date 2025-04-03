@@ -15,6 +15,7 @@ class AsyncSQLController:
         except sqlalchemy.exc.OperationalError:
             pass
         self.async_session = async_sessionmaker(self.__engine, expire_on_commit=False)
+
     async def create_user(self, user: User):
         async with self.async_session() as session:
             new_user = Employee(
@@ -31,7 +32,14 @@ class AsyncSQLController:
             )
             session.add(new_user)
             await session.commit()
-
+    async def get_role(self, login: str) -> str:
+        """Получение роли user/admin у работника"""
+        async with self.async_session() as session:
+            role = await session.execute(select(Employee.role).where(Employee.email == login))
+            role = role.scalar()
+            if role is None:
+                raise HTTPException(status_code=404)
+            return role
     async def login(self, login: str, password: str):
         async with self.async_session() as session:
             # Проверка существования пользователя
@@ -45,7 +53,8 @@ class AsyncSQLController:
 
     async def get_all_employers(self):
         async with self.async_session() as session:
-            columns = [c for c in inspect(Employee).c if c.name != "password_hash" and c.name != "role" and c.name !="id"]
+            columns = [c for c in inspect(Employee).c if
+                       c.name != "password_hash" and c.name != "role" and c.name != "id"]
             result = await session.execute(select(*columns).order_by(Employee.first_name, Employee.last_name))
             data = [dict(zip([column.name for column in columns], row)) for row in result.all()]
             return data
@@ -59,5 +68,8 @@ class AsyncSQLController:
 
     async def get_all_events(self):
         async with self.async_session() as session:
-            result = await session.execute(select(Event))
-            return result.scalars().all()
+            columns = [c for c in inspect(Event).c if
+                       c.name != "id" and c.name != "organizer_id"]
+            result = await session.execute(select(*columns))
+            data = [dict(zip([column.name for column in columns], row)) for row in result.all()]
+            return data
