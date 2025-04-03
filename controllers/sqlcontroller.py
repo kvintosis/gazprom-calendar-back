@@ -1,47 +1,63 @@
-from model.LoginCred import LoginCred
-import sqlalchemy
-from sqlalchemy import select
+from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy import select, inspect
 from passlib.hash import pbkdf2_sha256
+import sqlalchemy.exc
+from model.Dto_Event import Dto_Event
 from model.User import User
-from sqlalchemy import create_engine
-from sqlalchemy.ext.automap import automap_base
-from sqlalchemy.orm import Session
+from model.tables import Employee, Event
 
 
-class SQLController:
-    _base = None
-    _engine = None
-    _employees = None
-    def __init__(self, address):
+class AsyncSQLController:
+    def __init__(self, address: str):
         try:
-            self._engine = create_engine(address, echo=True)
-            self._base = automap_base()
-            self._base.prepare(autoload_with=self._engine, reflect=True)
-            self._employees = self._base.classes.employees
+            self.__engine = create_async_engine(address, echo=True)
         except sqlalchemy.exc.OperationalError:
             pass
+        self.async_session = async_sessionmaker(self.__engine, expire_on_commit=False)
+    async def create_user(self, user: User):
+        async with self.async_session() as session:
+            new_user = Employee(
+                first_name=user.first_name,
+                last_name=user.last_name,
+                birth_date=user.birth_date,
+                position=user.position,
+                department=user.department,
+                skills=user.skills,
+                interests=user.interests,
+                email=user.email,
+                password_hash=pbkdf2_sha256.hash(user.password_hash),
+                role=user.role
+            )
+            session.add(new_user)
+            await session.commit()
 
-    def create_user(self, user: User):
-        with Session(self._engine) as session:
-            user.password = pbkdf2_sha256.hash(user.password)
-            session.add(self._employees(first_name=user.first_name,
-                        last_name=user.last_name,
-                        birth_date=user.birth_date,
-                        position=user.position,
-                        department=user.department,
-                        skills=user.skills,
-                        interests=user.interests,
-                        email=user.email,
-                        password_hash=user.password,
-                        role=user.role))
-            session.commit()
+    async def login(self, login: str, password: str):
+        async with self.async_session() as session:
+            # Проверка существования пользователя
+            user = await session.execute(select(Employee).where(Employee.email == login))
+            db_user = user.scalar()
+            if not db_user:
+                raise HTTPException(status_code=404, detail="User not found")
+            if not pbkdf2_sha256.verify(password, db_user.password_hash):
+                raise HTTPException(status_code=401, detail="Invalid password")
+            return True
 
-    def login(self, login_credentials: LoginCred):
-        with Session(self._engine) as session:
-            db_user = session.execute(
-                select(self._employees)
-                .where(self._employees.email == login_credentials.login)).scalar()
-            if pbkdf2_sha256.verify(login_credentials.password, db_user.password_hash):
-                return True
-            else:
-                raise ValueError("Invalid password")
+    async def get_all_employers(self):
+        async with self.async_session() as session:
+            columns = [c for c in inspect(Employee).c if c.name != "password_hash" and c.name != "role" and c.name !="id"]
+            result = await session.execute(select(*columns).order_by(Employee.first_name, Employee.last_name))
+            data = [dict(zip([column.name for column in columns], row)) for row in result.all()]
+            return data
+
+    async def create_event(self, event: Dto_Event):
+        async with self.async_session() as session:
+            new_event = Event(**event.model_dump())
+            print(new_event)
+            session.add(new_event)
+            await session.commit()
+
+    async def get_all_events(self):
+        async with self.async_session() as session:
+            result = await session.execute(select(Event))
+            return result.scalars().all()
