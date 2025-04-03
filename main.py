@@ -1,16 +1,15 @@
 import jwt
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
-from jwt import InvalidTokenError
 from fastapi.responses import RedirectResponse, JSONResponse
 from controllers.sqlcontroller import AsyncSQLController
 import env
-from model.DTO_event import DTO_event
+from model.Dto_Event import Dto_Event
 from model.jwtBearer import create_access_token
 from model.User import User
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
-from fastapi import Depends, FastAPI, HTTPException, status, Response, Request
+from fastapi import Depends, FastAPI, HTTPException, status, Response, Request, Cookie
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
 app = FastAPI()
@@ -46,7 +45,7 @@ async def login(response: Response, form_data: Annotated[OAuth2PasswordRequestFo
         # Установка cookie
         response.set_cookie(
             key="access_token",
-            value=f"Bearer {access_token}",
+            value=access_token,
             httponly=True,
             secure=True,  # Для HTTPS. В разработке можно `secure=False`
             samesite="lax",
@@ -61,37 +60,59 @@ async def login(response: Response, form_data: Annotated[OAuth2PasswordRequestFo
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
-def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+
+
+
+def get_current_user(token: Annotated[str | None, Cookie(alias="access_token")] = None):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    if token is None:
+        raise credentials_exception
     try:
+        print(token)
         payload = jwt.decode(token, env.SECRET_KEY, algorithms=[env.ALGORITHM])
         login = payload.get("sub")
         if login is None:
             raise credentials_exception
     except jwt.ExpiredSignatureError:
         raise credentials_exception
-    except InvalidTokenError:
-        raise credentials_exception
+
     return login
 
 
 @app.get("/events")
-async def read_calendar(current_user: str = Depends(get_current_user)):
-    pass
+async def read_event(current_user: str = Depends(get_current_user)):
+    try:
+        event = await sql_controller.get_all_events()
+        return event
+    except Exception:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": "Ошибка при получении событий"}
+        )
 
 
 @app.get("/employees")
 async def read_employees(current_user: str = Depends(get_current_user)):
     try:
-        await sql_controller.get_all_events(current_user)
+        employees = await sql_controller.get_all_employers()
+        return employees
     except Exception as e:
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST)
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": "Ошибка при получении сотрудников"}
+        )
 
-
+@app.post("/adminboard/createevent")
+async def create_event(event: Dto_Event):
+    try:
+        await sql_controller.create_event(event)
+        return JSONResponse(status_code=200, content={"message": "Event created"})
+    except Exception as e:
+        return JSONResponse(status_code=404, content={"message":str(e)})
 @app.post("/adminboard/createuser")
 async def create_user(user: User):
     try:
@@ -101,7 +122,7 @@ async def create_user(user: User):
         return JSONResponse(status_code=404, content={"message": str(e)})
 
 @app.post("/adminboard/createevent")
-async def create_event(event: DTO_event):
+async def create_event(event: Dto_Event):
     try:
         await sql_controller.create_event(event)
         return JSONResponse(status_code=200, content={"message": "Event created"})

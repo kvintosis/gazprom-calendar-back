@@ -1,12 +1,9 @@
-from asyncio import new_event_loop
-
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.ext.automap import automap_base
-from sqlalchemy import select
+from sqlalchemy import select, inspect
 from passlib.hash import pbkdf2_sha256
 import sqlalchemy.exc
-from model.DTO_event import DTO_event
+from model.Dto_Event import Dto_Event
 from model.User import User
 from model.tables import Employee, Event
 
@@ -46,20 +43,21 @@ class AsyncSQLController:
                 raise HTTPException(status_code=401, detail="Invalid password")
             return True
 
-    async def create_event(self, event: DTO_event):
+    async def get_all_employers(self):
         async with self.async_session() as session:
-            new_event = Event(
-                title=event.title,
-                description=event.description,
-                start_time=event.start_time,
-                end_time=event.end_time,
-                type=event.type,
-                organizer_id=event.organizer_id
-            )
+            columns = [c for c in inspect(Employee).c if c.name != "password_hash" and c.name != "role" and c.name !="id"]
+            result = await session.execute(select(*columns).order_by(Employee.first_name, Employee.last_name))
+            data = [dict(zip([column.name for column in columns], row)) for row in result.all()]
+            return data
+
+    async def create_event(self, event: Dto_Event):
+        async with self.async_session() as session:
+            new_event = Event(**event.model_dump())
+            print(new_event)
             session.add(new_event)
             await session.commit()
 
     async def get_all_events(self):
         async with self.async_session() as session:
-            result = await session.execute(select(DTO_event))
+            result = await session.execute(select(Event))
             return result.scalars().all()

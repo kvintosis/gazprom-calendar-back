@@ -1,6 +1,5 @@
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, ForeignKey, CheckConstraint, DateTime
-from sqlalchemy.orm import relationship
 
 Base = declarative_base()
 
@@ -35,7 +34,6 @@ class Event(Base):
 
 class EventParticipant(Base):
     __tablename__ = "event_participants"
-
     event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"), primary_key=True)
     employee_id = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"), primary_key=True)
     status = Column(String, default='invited')
@@ -43,7 +41,6 @@ class EventParticipant(Base):
 
 class Schedule(Base):
     __tablename__ = "schedule"
-
     employee_id = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"), primary_key=True)
     start_time = Column(DateTime, nullable=False)
     end_time = Column(DateTime, nullable=False)
