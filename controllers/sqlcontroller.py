@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy import select, inspect
 from passlib.hash import pbkdf2_sha256
 import sqlalchemy.exc
-from model.Dto_Event import Dto_Event
+from model.Dto_Event import EventCreate
 from model.User import User
 from model.tables import Employee, Event
 
@@ -44,10 +44,8 @@ class AsyncSQLController:
         async with self.async_session() as session:
             user = await session.execute(select(Employee).where(Employee.email == login))
             db_user = user.scalar()
-            if not db_user:
-                raise HTTPException(status_code=404, detail="User not found")
-            if not pbkdf2_sha256.verify(password, db_user.password_hash):
-                raise HTTPException(status_code=400, detail="Invalid password")
+            if not db_user or not pbkdf2_sha256.verify(password, db_user.password_hash):
+                raise HTTPException(status_code=400)
             return True
 
     async def get_all_employers(self):
@@ -61,14 +59,7 @@ class AsyncSQLController:
     async def create_event(self, event: EventCreate):
         async with self.async_session() as session:
             async with session.begin():
-                new_event = Event(
-                    title=event.title,
-                    description=event.description,
-                    start_time=event.start_time,
-                    end_time=event.end_time,
-                    type=event.type,
-                    organizer_id=event.organizer_id,
-                )
+                new_event = Event(*event.model_dump())
                 session.add(new_event)
                 await session.commit()
                 return new_event

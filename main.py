@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, JSONResponse
 from controllers.sqlcontroller import AsyncSQLController
 import env
-from model.Dto_Event import Dto_Event
 from model.Dto_Event import EventCreate
 from model.jwtBearer import create_access_token
 from model.User import User
@@ -32,7 +31,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-        return RedirectResponse(url="/")
+        return RedirectResponse(url="/need-auth")
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
@@ -108,13 +107,16 @@ async def read_employees(_ = Depends(get_current_user)):
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"detail": "Ошибка при получении сотрудников"}
         )
-
-@app.post("/adminboard/createevent")
-async def create_event(event: Dto_Event):
+@app.post("/adminboard/createuser")
+async def create_user(user: User, role: str = Depends(get_current_user)):
+    if role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Только администратор может создавать события"
+        )
     try:
-        await check_admin()
-        await sql_controller.create_event(event)
-        return JSONResponse(status_code=200, content={"message": "Event created"})
+        await sql_controller.create_user(user)
+        return JSONResponse(status_code=200, content={"message": "User created"})
     except Exception as e:
         return JSONResponse(status_code=404, content={"message": str(e)})
 
