@@ -18,11 +18,12 @@ origins = [
 ]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["http://localhost:5173"],  # Точный источник фронтенда
+    allow_credentials=True,                   # Разрешаем куки
+    allow_methods=["*"], # Явно указываем методы
+    allow_headers=["*"], # Явно указываем заголовки
 )
+
 sql_controller = AsyncSQLController(address=f'sqlite+aiosqlite:///{env.sql_address}')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -37,7 +38,10 @@ async def auth_exception_handler(request: Request, exc: HTTPException):
 @app.post("/login")
 async def login(response: Response, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     try:
-        await sql_controller.login(form_data.username, form_data.password)
+        user_exists = await sql_controller.login(form_data.username, form_data.password)
+        if not user_exists:
+            raise HTTPException(status_code=400, detail="Invalid credentials")
+
         access_token_expires = timedelta(minutes=env.ACCESS_TOKEN_EXPIRE_MINUTES)
         role = await sql_controller.get_role(form_data.username)
         access_token = create_access_token(
@@ -45,8 +49,6 @@ async def login(response: Response, form_data: Annotated[OAuth2PasswordRequestFo
             expires_delta=access_token_expires
         )
 
-
-        # Установка cookie
         response.set_cookie(
             key="access_token",
             value=access_token,
@@ -65,7 +67,7 @@ async def login(response: Response, form_data: Annotated[OAuth2PasswordRequestFo
             detail=str(e)
         )
 
-
+# Проверка текущего пользователя
 def get_current_user(token: Annotated[str | None, Cookie(alias="access_token")] = None):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -75,17 +77,15 @@ def get_current_user(token: Annotated[str | None, Cookie(alias="access_token")] 
     if token is None:
         raise credentials_exception
     try:
-        print(token)
         payload = jwt.decode(token, env.SECRET_KEY, algorithms=[env.ALGORITHM])
         role = payload.get("sub")
-        if login is None:
+        if role is None:
             raise credentials_exception
     except jwt.ExpiredSignatureError:
         raise credentials_exception
-
     return role
 
-
+# Остальные эндпоинты остаются без изменений
 @app.get("/events")
 async def read_event(_ = Depends(get_current_user)):
     try:
@@ -96,7 +96,6 @@ async def read_event(_ = Depends(get_current_user)):
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"detail": "Ошибка при получении событий"}
         )
-
 
 @app.get("/employees")
 async def read_employees(_ = Depends(get_current_user)):
@@ -109,26 +108,26 @@ async def read_employees(_ = Depends(get_current_user)):
             content={"detail": "Ошибка при получении сотрудников"}
         )
 
-
 @app.post("/adminboard/createevent")
 async def create_event(event: Dto_Event):
     try:
+        await check_admin()
         await sql_controller.create_event(event)
         return JSONResponse(status_code=200, content={"message": "Event created"})
     except Exception as e:
         return JSONResponse(status_code=404, content={"message": str(e)})
 
-
 @app.post("/adminboard/createuser")
 async def create_user(user: User):
     try:
+        await check_admin()
         await sql_controller.create_user(user)
         return JSONResponse(status_code=200, content={"message": "User created"})
     except Exception as e:
         return JSONResponse(status_code=404, content={"message": str(e)})
 
 @app.get("/adminboard/")
-async def check_adminboard(role: str = Depends(get_current_user)):
+async def check_admin(role: str = Depends(get_current_user)):
     if role != "admin":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

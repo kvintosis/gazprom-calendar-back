@@ -48,7 +48,7 @@ class AsyncSQLController:
             if not db_user:
                 raise HTTPException(status_code=404, detail="User not found")
             if not pbkdf2_sha256.verify(password, db_user.password_hash):
-                raise HTTPException(status_code=401, detail="Invalid password")
+                raise HTTPException(status_code=400, detail="Invalid password")
             return True
 
     async def get_all_employers(self):
