@@ -18,10 +18,10 @@ origins = [
 ]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Точный источник фронтенда
-    allow_credentials=True,                   # Разрешаем куки
-    allow_methods=["*"], # Явно указываем методы
-    allow_headers=["*"], # Явно указываем заголовки
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
 )
 
 sql_controller = AsyncSQLController(address=f'sqlite+aiosqlite:///{env.sql_address}')
@@ -31,7 +31,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/")
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
@@ -54,7 +54,7 @@ async def login(response: Response, form_data: Annotated[OAuth2PasswordRequestFo
             value=access_token,
             httponly=True,
             secure=True,  # Для HTTPS. В разработке можно `secure=False`
-            samesite="lax",
+            samesite="none",
             max_age=1800
         )
         return {"message": "Login successful"}

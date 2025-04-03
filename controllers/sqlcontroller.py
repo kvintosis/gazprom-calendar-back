@@ -11,7 +11,7 @@ from model.tables import Employee, Event
 class AsyncSQLController:
     def __init__(self, address: str):
         try:
-            self.__engine = create_async_engine(address, echo=True)
+            self.__engine = create_async_engine(address)
         except sqlalchemy.exc.OperationalError:
             pass
         self.async_session = async_sessionmaker(self.__engine, expire_on_commit=False)
@@ -42,7 +42,6 @@ class AsyncSQLController:
             return role
     async def login(self, login: str, password: str):
         async with self.async_session() as session:
-            # Проверка существования пользователя
             user = await session.execute(select(Employee).where(Employee.email == login))
             db_user = user.scalar()
             if not db_user:
