@@ -4,3 +4,7 @@ sqlalchemy
 aiosqlite
 pyjwt
 asyncio
+passlib
+pydantic
+pydantic[email]
+python-multipart

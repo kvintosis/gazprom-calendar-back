@@ -25,6 +25,8 @@ app.add_middleware(
 )
 sql_controller = AsyncSQLController(address=f'sqlite+aiosqlite:///{env.sql_address}')
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_401_UNAUTHORIZED:
@@ -60,7 +62,6 @@ async def login(response: Response, form_data: Annotated[OAuth2PasswordRequestFo
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
-
 
 
 def get_current_user(token: Annotated[str | None, Cookie(alias="access_token")] = None):
@@ -106,13 +107,16 @@ async def read_employees(current_user: str = Depends(get_current_user)):
             content={"detail": "Ошибка при получении сотрудников"}
         )
 
+
 @app.post("/adminboard/createevent")
 async def create_event(event: Dto_Event):
     try:
         await sql_controller.create_event(event)
         return JSONResponse(status_code=200, content={"message": "Event created"})
     except Exception as e:
-        return JSONResponse(status_code=404, content={"message":str(e)})
+        return JSONResponse(status_code=404, content={"message": str(e)})
+
+
 @app.post("/adminboard/createuser")
 async def create_user(user: User):
     try:
@@ -121,13 +125,18 @@ async def create_user(user: User):
     except Exception as e:
         return JSONResponse(status_code=404, content={"message": str(e)})
 
+
 @app.post("/adminboard/createevent")
 async def create_event(event: Dto_Event):
     try:
         await sql_controller.create_event(event)
         return JSONResponse(status_code=200, content={"message": "Event created"})
     except Exception as e:
-        return JSONResponse(status_code=404, content={"message":str(e)})
+        return JSONResponse(status_code=404, content={"message": str(e)})
+
+@app.get("/adminboard/")
+async def check_adminboard(current_user: str = Depends(get_current_user)):
+    pass
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
