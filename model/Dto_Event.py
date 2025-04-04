@@ -8,4 +8,3 @@ class EventCreate(BaseModel):
     start_time: datetime
     end_time: datetime
     type: str
-    organizer_id: int

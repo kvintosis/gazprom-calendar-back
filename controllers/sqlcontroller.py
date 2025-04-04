@@ -59,7 +59,7 @@ class AsyncSQLController:
     async def create_event(self, event: EventCreate):
         async with self.async_session() as session:
             async with session.begin():
-                new_event = Event(*event.model_dump())
+                new_event = Event(**event.model_dump())
                 session.add(new_event)
                 await session.commit()
                 return new_event

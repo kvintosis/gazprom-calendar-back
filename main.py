@@ -34,7 +34,6 @@ async def auth_exception_handler(request: Request, exc: HTTPException):
         return RedirectResponse(url="/need-auth")
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
-
 @app.post("/login")
 async def login(response: Response, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     try:
